@@ -260,3 +260,7 @@ Conformément aux spécifications SA-3, SA-4 et SA-5 :
 ## 📝 Licence
 
 Projet académique — FYKEK Groupe 3.
+
+## Configuration de l'environnement
+
+Consultez le fichier [Configuration.md](./Configuration.md) pour installer et lancer le projet en local.
