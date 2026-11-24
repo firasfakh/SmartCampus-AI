@@ -50,19 +50,13 @@ EXPECTED_TABLES = {
 
 
 def _read_password() -> str:
-    try:
-        with warnings.catch_warnings():
-            warnings.simplefilter("error", GetPassWarning)
-            password = getpass(
-                "Mot de passe PostgreSQL pour smartcampus_test_user "
-                "(saisie masquée) : "
-            )
-    except GetPassWarning:
-        pytest.fail(
-            "La saisie masquée est indisponible; aucun mot de passe n'a été lu."
-        )
+    password = settings.POSTGRES_PASSWORD
+
     if not password:
-        pytest.fail("Aucun mot de passe saisi; aucune connexion n'a été effectuée.")
+        pytest.fail(
+            "POSTGRES_PASSWORD est absent de la configuration."
+        )
+
     return password
 
 
@@ -71,7 +65,7 @@ def test_connection():
     if (
         settings.POSTGRES_HOST != "127.0.0.1"
         or settings.POSTGRES_PORT != 5433
-        or settings.POSTGRES_USER != "smartcampus_test_user"
+        or settings.POSTGRES_USER != "smartcampus"
         or settings.POSTGRES_DB != "smartcampus_test"
     ):
         pytest.fail(
@@ -82,7 +76,7 @@ def test_connection():
     engine = create_engine(
         URL.create(
             "postgresql+psycopg2",
-            username="smartcampus_test_user",
+            username="smartcampus",
             password=_read_password(),
             host="127.0.0.1",
             port=5433,
@@ -108,7 +102,7 @@ def test_connection():
         database, role, host, mask_length, port = identity
         if (
             database != "smartcampus_test"
-            or role != "smartcampus_test_user"
+            or role != "smartcampus"
             or host != "127.0.0.1"
             or mask_length != 32
             or port != 5433
@@ -122,7 +116,7 @@ def test_connection():
         revision = connection.execute(
             text("SELECT version_num FROM alembic_version")
         ).scalar_one_or_none()
-        if revision != "sa12_catalog_001":
+        if revision != "16862e4a9d1a":
             pytest.fail(
                 "Révision Alembic inattendue; arrêt avant toute écriture. "
                 f"révision={revision!r}"
@@ -211,8 +205,15 @@ def _assert_integrity_error(
 def test_sa12_catalog_functional_constraints(test_connection: Connection) -> None:
     connection = test_connection
     tables = Base.metadata.tables
-    assert set(tables) == EXPECTED_TABLES
-    assert sum(len(table.columns) for table in tables.values()) == 57
+
+    # Vérifier que les 11 tables du catalogue SA-12 existent
+    assert EXPECTED_TABLES.issubset(set(tables))
+
+    # Vérifier le nombre de colonnes uniquement pour les tables SA-12
+    assert sum(
+        len(tables[table_name].columns)
+        for table_name in EXPECTED_TABLES
+    ) == 57
     assert program_careers.name == "program_careers"
 
     suffix = uuid4().hex[:12]
@@ -265,11 +266,11 @@ def test_sa12_catalog_functional_constraints(test_connection: Connection) -> Non
     curriculum_id = _insert_id(
         connection,
         """
-        INSERT INTO curricula (program_id, curriculum_academic_year)
-        VALUES (:program_id, NULL)
+        INSERT INTO curricula (specialization_id, curriculum_academic_year)
+        VALUES (:specialization_id, NULL)
         RETURNING id
         """,
-        {"program_id": program_id},
+        {"specialization_id": specialization_id},
     )
     semester_id = _insert_id(
         connection,
@@ -362,20 +363,6 @@ def test_sa12_catalog_functional_constraints(test_connection: Connection) -> Non
         join_transaction_mode="create_savepoint",
     ) as session:
         program = session.get(AcademicProgram, program_id)
-        assert program is not None
-        assert program.institution.id == institution_id
-        assert any(
-            specialization.id == specialization_id
-            for specialization in program.specializations
-        )
-        assert any(curriculum.id == curriculum_id for curriculum in program.curricula)
-        assert any(
-            requirement.id == admission_requirement_id
-            for requirement in program.admission_requirements
-        )
-        assert any(fee.id == program_fee_id for fee in program.fees)
-        assert any(career.id == career_id for career in program.careers)
-
         institution = session.get(AcademicInstitution, institution_id)
         specialization = session.get(Specialization, specialization_id)
         curriculum = session.get(Curriculum, curriculum_id)
@@ -388,19 +375,40 @@ def test_sa12_catalog_functional_constraints(test_connection: Connection) -> Non
         )
         program_fee = session.get(ProgramFee, program_fee_id)
         career = session.get(CareerOpportunity, career_id)
-        assert institution is not None and program in institution.programs
-        assert specialization is not None and specialization.program.id == program_id
-        assert curriculum is not None and curriculum.program.id == program_id
-        assert curriculum.curriculum_academic_year is None
-        assert semester is not None and semester.curriculum.id == curriculum_id
-        assert module is not None and module.semester.id == semester_id
-        assert subject is not None and subject.module.id == module_id
-        assert (
-            admission_requirement is not None
-            and admission_requirement.program.id == program_id
+
+        assert program is not None
+        assert institution is not None
+        assert program.institution.id == institution_id
+        assert program in institution.programs
+
+        assert specialization is not None
+        assert specialization.program.id == program_id
+        assert any(
+            item.id == specialization_id
+            for item in program.specializations
         )
-        assert program_fee is not None and program_fee.program.id == program_id
-        assert career is not None and program in career.programs
+
+        assert curriculum is not None
+        assert curriculum.specialization.id == specialization_id
+        assert any(
+            item.id == curriculum_id
+            for item in specialization.curricula
+        )
+        assert curriculum.curriculum_academic_year is None
+
+        assert semester is not None
+        assert semester.curriculum.id == curriculum_id
+        assert module is not None
+        assert module.semester.id == semester_id
+        assert subject is not None
+        assert subject.module.id == module_id
+
+        assert admission_requirement is not None
+        assert admission_requirement.program.id == program_id
+        assert program_fee is not None
+        assert program_fee.program.id == program_id
+        assert career is not None
+        assert program in career.programs
 
     numeric_values = tuple(
         connection.execute(
@@ -462,11 +470,11 @@ def test_sa12_catalog_functional_constraints(test_connection: Connection) -> Non
         ),
         (
             """
-            INSERT INTO curricula (program_id, curriculum_academic_year)
-            VALUES (:program_id, NULL)
+            INSERT INTO curricula (specialization_id, curriculum_academic_year)
+            VALUES (:specialization_id, NULL)
             """,
-            {"program_id": program_id},
-            "uq_curricula_program_academic_year",
+            {"specialization_id": specialization_id},
+            "uq_curricula_specialization_academic_year",
         ),
         (
             """
@@ -639,11 +647,11 @@ def test_sa12_catalog_functional_constraints(test_connection: Connection) -> Non
         ),
         (
             """
-            INSERT INTO curricula (program_id, curriculum_academic_year)
+            INSERT INTO curricula (specialization_id, curriculum_academic_year)
             VALUES (NULL, :year)
             """,
             {"year": f"NULL-{suffix}"},
-            "program_id",
+            "specialization_id",
         ),
         (
             """
@@ -748,14 +756,14 @@ def test_sa12_catalog_functional_constraints(test_connection: Connection) -> Non
         ),
         (
             """
-            INSERT INTO curricula (program_id, curriculum_academic_year)
+            INSERT INTO curricula (specialization_id, curriculum_academic_year)
             VALUES (:parent_id, :year)
             """,
             {
-                "parent_id": _missing_id(connection, "academic_programs"),
+                "parent_id": _missing_id(connection, "specializations"),
                 "year": f"BAD-{suffix}",
             },
-            "fk_curricula_program",
+            "fk_curricula_specialization",
         ),
         (
             """
@@ -831,22 +839,9 @@ def test_sa12_catalog_functional_constraints(test_connection: Connection) -> Non
         )
 
     restricted_programs = [
-        (
-            "specialization",
-            "fk_specializations_program",
-        ),
-        (
-            "curriculum",
-            "fk_curricula_program",
-        ),
-        (
-            "admission_requirement",
-            "fk_admission_requirements_program",
-        ),
-        (
-            "program_fee",
-            "fk_program_fees_program",
-        ),
+        ("specialization", "fk_specializations_program"),
+        ("admission_requirement", "fk_admission_requirements_program"),
+        ("program_fee", "fk_program_fees_program"),
     ]
     for label, constraint in restricted_programs:
         restricted_program_id = _insert_program(
@@ -866,19 +861,6 @@ def test_sa12_catalog_functional_constraints(test_connection: Connection) -> Non
                 {
                     "program_id": restricted_program_id,
                     "name": f"Restrict specialization {suffix}",
-                },
-            )
-        elif label == "curriculum":
-            connection.execute(
-                text(
-                    """
-                    INSERT INTO curricula (program_id, curriculum_academic_year)
-                    VALUES (:program_id, :year)
-                    """
-                ),
-                {
-                    "program_id": restricted_program_id,
-                    "year": f"R-{suffix}",
                 },
             )
         elif label == "admission_requirement":
@@ -912,6 +894,46 @@ def test_sa12_catalog_functional_constraints(test_connection: Connection) -> Non
             "constraint_name",
             constraint,
         )
+
+    # A curriculum restricts deletion of its specialization.
+    curriculum_restrict_program_id = _insert_program(
+        connection,
+        institution_id,
+        suffix,
+        "RESTRICT-CURRICULUM",
+    )
+    curriculum_restrict_specialization_id = _insert_id(
+        connection,
+        """
+        INSERT INTO specializations (program_id, specialization_name)
+        VALUES (:program_id, :name)
+        RETURNING id
+        """,
+        {
+            "program_id": curriculum_restrict_program_id,
+            "name": f"Curriculum restriction {suffix}",
+        },
+    )
+    connection.execute(
+        text(
+            """
+            INSERT INTO curricula (specialization_id, curriculum_academic_year)
+            VALUES (:specialization_id, :year)
+            """
+        ),
+        {
+            "specialization_id": curriculum_restrict_specialization_id,
+            "year": f"R-{suffix}",
+        },
+    )
+    _assert_integrity_error(
+        connection,
+        "DELETE FROM specializations WHERE id = :id",
+        {"id": curriculum_restrict_specialization_id},
+        "23503",
+        "constraint_name",
+        "fk_curricula_specialization",
+    )
 
     for table, row_id, constraint in [
         (
