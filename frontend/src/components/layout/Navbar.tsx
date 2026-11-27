@@ -1,7 +1,6 @@
 import React from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
-import { RoleSwitcher } from '../common/RoleSwitcher';
 import { LanguageCode } from '../../types';
 import { 
   GraduationCap, 
@@ -119,10 +118,10 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPage, onNavigate }) => {
             )}
           </nav>
 
-          {/* Right Controls: RoleSwitcher, Language, User actions */}
+          {/* Language and user actions */}
           <div className="flex items-center gap-3">
             {/* Role Switcher Pill */}
-            <RoleSwitcher />
+            
 
             {/* Language Selector */}
             <div className="relative group">

@@ -112,6 +112,8 @@ class Interview(UUIDMixin, TimestampMixin, Base):
     appointment: Mapped["Appointment"] = relationship(
         "Appointment",
         foreign_keys=[appointment_id, pre_registration_id],
+        # pre_registration_id est partagé avec la relation `pre_registration`.
+        overlaps="pre_registration",
     )
     interviewer: Mapped["UserAccount"] = relationship(
         "UserAccount",

@@ -10,6 +10,7 @@ from typing import Any, Optional
 
 from fastapi import FastAPI, Request, status
 from fastapi.exceptions import RequestValidationError
+from starlette.exceptions import HTTPException as StarletteHTTPException
 from fastapi.responses import JSONResponse
 
 logger = logging.getLogger(__name__)
@@ -146,6 +147,25 @@ def setup_exception_handlers(app: FastAPI) -> None:
             exc.error_code,
         )
         return _error_response(exc.status_code, exc.detail, exc.error_code)
+
+    @app.exception_handler(StarletteHTTPException)
+    async def http_exception_handler(
+        request: Request, exc: StarletteHTTPException
+    ) -> JSONResponse:
+        """Uniformiser les HTTPException (401, 403, 404, 409...) au format SmartCampus."""
+        codes = {
+            400: "BAD_REQUEST", 401: "UNAUTHORIZED", 403: "FORBIDDEN", 404: "NOT_FOUND",
+            405: "METHOD_NOT_ALLOWED", 409: "CONFLICT", 422: "VALIDATION_ERROR",
+            429: "TOO_MANY_REQUESTS",
+        }
+        message = exc.detail if isinstance(exc.detail, str) else "Erreur."
+        code = codes.get(exc.status_code, f"HTTP_{exc.status_code}")
+        return JSONResponse(
+            status_code=exc.status_code,
+            # `detail` conservé pour compatibilité avec les clients existants.
+            content={"success": False, "error": {"code": code, "message": message}, "detail": message},
+            headers=getattr(exc, "headers", None),
+        )
 
     @app.exception_handler(RequestValidationError)
     async def validation_exception_handler(

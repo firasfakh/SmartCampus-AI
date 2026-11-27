@@ -3,6 +3,7 @@ from __future__ import annotations
 import sys
 import warnings
 from decimal import Decimal
+import os
 from getpass import GetPassWarning, getpass
 from pathlib import Path
 from uuid import uuid4
@@ -31,6 +32,16 @@ from app.models import (
     Specialization,
     Subject,
     program_careers,
+)
+
+
+# Test historique SA-12 : interactif (mot de passe saisi au clavier) et lié à un
+# utilisateur PostgreSQL dédié. Exécution manuelle uniquement :
+#   RUN_SA12_MANUAL=1 pytest tests/test_sa12_functional.py -s
+# Les tests automatiques du catalogue sont dans tests/test_integration_api.py.
+pytestmark = pytest.mark.skipif(
+    os.environ.get("RUN_SA12_MANUAL") != "1",
+    reason="Test SA-12 interactif : lancer avec RUN_SA12_MANUAL=1 et l'option -s.",
 )
 
 
@@ -211,8 +222,9 @@ def _assert_integrity_error(
 def test_sa12_catalog_functional_constraints(test_connection: Connection) -> None:
     connection = test_connection
     tables = Base.metadata.tables
-    assert set(tables) == EXPECTED_TABLES
-    assert sum(len(table.columns) for table in tables.values()) == 57
+    # La métadonnée contient aussi les tables SA-13 : on vérifie le sous-ensemble catalogue.
+    assert EXPECTED_TABLES <= set(tables)
+    assert sum(len(tables[name].columns) for name in EXPECTED_TABLES) == 57
     assert program_careers.name == "program_careers"
 
     suffix = uuid4().hex[:12]

@@ -20,7 +20,9 @@ class TestAppStartup:
 
     def test_app_version(self):
         """L'application doit avoir une version définie."""
-        assert app.version == "0.1.0"
+        from app.core.config import settings
+
+        assert app.version == settings.VERSION
 
 
 class TestRootEndpoint:

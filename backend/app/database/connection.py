@@ -15,21 +15,27 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 from sqlalchemy import text
+from sqlalchemy.pool import NullPool
 
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
-# Moteur de base de données asynchrone
-engine = create_async_engine(
-    settings.DATABASE_URL,
-    echo=False,
-    pool_size=5,
-    max_overflow=10,
-    pool_pre_ping=True,
-    pool_recycle=3600,
-    connect_args={"timeout": 2.0},
-)
+# Moteur de base de données asynchrone.
+# En test (TESTING=true) on utilise NullPool : chaque requête ouvre sa propre
+# connexion, ce qui évite de partager des connexions asyncpg entre boucles d'événements.
+if settings.TESTING:
+    engine = create_async_engine(settings.DATABASE_URL, poolclass=NullPool)
+else:
+    engine = create_async_engine(
+        settings.DATABASE_URL,
+        echo=False,
+        pool_size=5,
+        max_overflow=10,
+        pool_pre_ping=True,
+        pool_recycle=3600,
+        connect_args={"timeout": 5.0},
+    )
 
 # Fabrique de sessions asynchrones
 async_session_factory = async_sessionmaker(

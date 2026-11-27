@@ -124,6 +124,8 @@ class CandidateDocument(UUIDMixin, TimestampMixin, Base):
     required_document_type: Mapped["RequiredDocumentType"] = relationship(
         "RequiredDocumentType",
         foreign_keys=[required_document_type_id, requirement_set_id],
+        # requirement_set_id est partagé avec la relation `pre_registration`.
+        overlaps="pre_registration",
     )
     reviewed_by: Mapped["UserAccount | None"] = relationship(
         "UserAccount", foreign_keys=[reviewed_by_user_id]

@@ -1,0 +1,269 @@
+{
+  "_comment": "SA-18 — Données de DÉMONSTRATION extraites de frontend/src/data/officialPrograms.ts. Les montants et conditions doivent être vérifiés auprès de l administration IIT/ISB avant toute communication officielle.",
+  "institutions": [
+    {
+      "code": "IIT",
+      "name": "Institut International de Technologie"
+    },
+    {
+      "code": "ISB",
+      "name": "International School of Business"
+    }
+  ],
+  "programs": [
+    {
+      "code": "IIT-ING-INFO",
+      "institution": "IIT",
+      "name": "Cycle Ingénieur en Génie Informatique",
+      "short_name": "Génie Informatique",
+      "type": "Cycle ingénieur",
+      "domain": "Informatique & IA",
+      "language": "Français",
+      "duration": "3 ans (après prépa ou bac+2/3)",
+      "description": "Formation d'excellence accréditée EUR-ACE formant des ingénieurs capables de concevoir des architectures logicielles complexes, des modèles d'intelligence artificielle et des systèmes sécurisés.",
+      "highlights": [
+        "Machine Learning & Deep Learning appliqué",
+        "Architecture Microservices & Cloud Native",
+        "Cybersécurité & Audit des Systèmes",
+        "Semestre international et stage PFE en entreprise"
+      ],
+      "prerequisites": [
+        "Cycle Préparatoire réussi (Math-Physique ou Techno)",
+        "Ou Licence en Informatique, Mathématiques ou EEA avec mention",
+        "Ou diplôme équivalent validé par la commission délibérative"
+      ],
+      "careers": [
+        "Ingénieur Intelligence Artificielle & Data",
+        "Architecte Cloud & DevSecOps",
+        "Lead Developer Full-Stack",
+        "Chef de Projet Numérique International"
+      ],
+      "tuition_tnd": 7200,
+      "featured": true
+    },
+    {
+      "code": "IIT-PREPA",
+      "institution": "IIT",
+      "name": "Cycle Préparatoire Intégré aux Études d’Ingénieur",
+      "short_name": "Prépa Intégrée",
+      "type": "Cycle préparatoire",
+      "domain": "Sciences & ingénierie",
+      "language": "Français",
+      "duration": "2 ans",
+      "description": "Deux années intensives d’acquisition des fondamentaux scientifiques, mathématiques et algorithmiques garantissant un accès direct aux filières ingénieur de l’IIT.",
+      "highlights": [
+        "Algèbre, Analyse et Probabilités appliquées",
+        "Physique Générale, Électronique et Mécanique",
+        "Algorithmique avancée et Langage C/Python",
+        "Anglais intensif et préparation aux certifications"
+      ],
+      "prerequisites": [
+        "Baccalauréat Scientifique (Mathématiques, Sciences Expérimentales ou Sciences Techniques)",
+        "Étude de dossier et entretien de motivation"
+      ],
+      "careers": [
+        "Accès direct aux 4 filières ingénieur de l’IIT (Informatique, Civil, Industriel, Mécatronique)"
+      ],
+      "tuition_tnd": 5800,
+      "featured": true
+    },
+    {
+      "code": "IIT-ING-CIVIL",
+      "institution": "IIT",
+      "name": "Cycle Ingénieur en Génie Civil",
+      "short_name": "Génie Civil",
+      "type": "Cycle ingénieur",
+      "domain": "Génie civil & BTP",
+      "language": "Français",
+      "duration": "3 ans",
+      "description": "Formation accréditée préparant les futurs chefs de projets BTP, concepteurs de structures durables et experts en modélisation BIM.",
+      "highlights": [
+        "Résistance des Matériaux & Géotechnique",
+        "Conception parasismique et Eurocodes",
+        "Modélisation BIM & Revit Architecture",
+        "Gestion financière et légale des chantiers"
+      ],
+      "prerequisites": [
+        "Cycle Préparatoire scientifique validé",
+        "Ou Licence en Génie Civil avec dossier académique rigoureux"
+      ],
+      "careers": [
+        "Ingénieur Calculateur Structures (Béton & Métal)",
+        "Chef de Chantier Grands Projets d’Infrastructure",
+        "Directeur de Travaux BTP",
+        "Expert BIM & Éco-construction"
+      ],
+      "tuition_tnd": 6800,
+      "featured": false
+    },
+    {
+      "code": "IIT-ING-INDUS",
+      "institution": "IIT",
+      "name": "Cycle Ingénieur en Génie Industriel & Logistique",
+      "short_name": "Génie Industriel",
+      "type": "Cycle ingénieur",
+      "domain": "Génie industriel & logistique",
+      "language": "Français",
+      "duration": "3 ans",
+      "description": "Expertise multidisciplinaire à la croisée du management opérationnel, de l’industrie 4.0 et de la gestion de la Supply Chain globale.",
+      "highlights": [
+        "Optimisation des flux et Lean Six Sigma",
+        "Supply Chain Management & ERP SAP",
+        "Automatisation et Usine Intelligente 4.0",
+        "Audit de Performance Industrielle"
+      ],
+      "prerequisites": [
+        "Cycle Prépa ou Licence scientifique/technique"
+      ],
+      "careers": [
+        "Directeur Supply Chain",
+        "Consultant Lean Manufacturing & Qualité",
+        "Ingénieur Méthodes & Industrialisation",
+        "Responsable Logistique Internationale"
+      ],
+      "tuition_tnd": 6700,
+      "featured": false
+    },
+    {
+      "code": "IIT-LIC-INFO",
+      "institution": "IIT",
+      "name": "Licence en Sciences de l’Informatique & Développement Web",
+      "short_name": "Licence Informatique",
+      "type": "Licence",
+      "domain": "Informatique & IA",
+      "language": "Français",
+      "duration": "3 ans (Bac+3)",
+      "description": "Cursus moderne axé sur les technologies web, le génie logiciel pratique et les bases de données relationnelles et NoSQL.",
+      "highlights": [
+        "Frontend moderne (React, TypeScript)",
+        "Backend & API RESTful (Python/Node.js)",
+        "Bases de données SQL et architectures web",
+        "Méthodologies Agiles et Scrum"
+      ],
+      "prerequisites": [
+        "Baccalauréat Informatique, Mathématiques, Sciences ou Économie"
+      ],
+      "careers": [
+        "Développeur Web & Mobile",
+        "Administrateur Systèmes & Réseaux",
+        "Poursuite en Cycle Ingénieur IIT"
+      ],
+      "tuition_tnd": 5400,
+      "featured": true
+    },
+    {
+      "code": "ISB-LIC-MGMT",
+      "institution": "ISB",
+      "name": "Licence en Management & Stratégie d’Entreprise",
+      "short_name": "Licence Management",
+      "type": "Licence",
+      "domain": "Business & management",
+      "language": "Français",
+      "duration": "3 ans (Bac+3)",
+      "description": "Programme international axé sur le leadership, la conduite du changement, la stratégie globale et l’entrepreneuriat.",
+      "highlights": [
+        "Management Stratégique & Leadership",
+        "Gestion Financière & Contrôle de Gestion",
+        "Marketing International & Négociation",
+        "Projets de Création d’Entreprise encadrés"
+      ],
+      "prerequisites": [
+        "Baccalauréat Économie & Gestion, Mathématiques, Sciences ou Lettres",
+        "Bon niveau de français et d’anglais"
+      ],
+      "careers": [
+        "Chef de Projet Junior",
+        "Chargé de Développement Commercial",
+        "Consultant Junior en Organisation",
+        "Créateur d’Entreprise / Startup"
+      ],
+      "tuition_tnd": 5200,
+      "featured": true
+    },
+    {
+      "code": "ISB-LIC-FINTECH",
+      "institution": "ISB",
+      "name": "Licence en Finance & Technologies Financières (FinTech)",
+      "short_name": "Licence FinTech",
+      "type": "Licence",
+      "domain": "Business & management",
+      "language": "Français",
+      "duration": "3 ans",
+      "description": "Programme innovant combinant les disciplines financières rigoureuses avec la révolution numérique bancaire et les monnaies digitales.",
+      "highlights": [
+        "Mathématiques Financières & Modélisation",
+        "Marchés des Capitaux & Gestion des Risques",
+        "Blockchain, Cryptomonnaies & Paiements Numériques",
+        "Analyse Financière des Sociétés Cotées"
+      ],
+      "prerequisites": [
+        "Baccalauréat Économie & Gestion, Mathématiques ou Sciences"
+      ],
+      "careers": [
+        "Analyste Financier",
+        "Chargé d’Affaires Bancaires & FinTech",
+        "Auditeur Financier Junior",
+        "Gestionnaire de Portefeuille"
+      ],
+      "tuition_tnd": 5300,
+      "featured": true
+    },
+    {
+      "code": "ISB-MAST-ANALYTICS",
+      "institution": "ISB",
+      "name": "Master Professionnel en Business Analytics & Big Data",
+      "short_name": "Master Business Analytics",
+      "type": "Master",
+      "domain": "Business & management",
+      "language": "Français",
+      "duration": "2 ans (Bac+5)",
+      "description": "Formation de haut niveau pour décideurs basée sur la valorisation de la donnée, l’intelligence d’affaires et les modèles prédictifs pour le business.",
+      "highlights": [
+        "Data Visualization (PowerBI, Tableau)",
+        "Data Mining & Modélisation Prédictive sous Python/R",
+        "Stratégie de Gouvernance des Données d’Entreprise",
+        "Stage professionnel de 6 mois et mémoire de fin d’études"
+      ],
+      "prerequisites": [
+        "Licence en Économie, Finance, Gestion, Informatique de Gestion ou Mathématiques",
+        "Entretien de sélection et test de compétences"
+      ],
+      "careers": [
+        "Business Intelligence Consultant",
+        "Data Analyst Marketing & Finance",
+        "Chief Data Officer d’Entreprise",
+        "Directeur de la Stratégie basée sur la Donnée"
+      ],
+      "tuition_tnd": 6400,
+      "featured": true
+    },
+    {
+      "code": "ISB-MAST-FINANCE",
+      "institution": "ISB",
+      "name": "Master Professionnel en Finance Internationale & Ingénierie Financière",
+      "short_name": "Master Finance Internationale",
+      "type": "Master",
+      "domain": "Business & management",
+      "language": "Français",
+      "duration": "2 ans",
+      "description": "Préparation approfondie aux métiers de la banque d’investissement, de la finance d’entreprise multinationale et de la gestion de fonds.",
+      "highlights": [
+        "Évaluation d’Entreprise & Fusions-Acquisitions",
+        "Produits Dérivés & Couverture des Risques de Change",
+        "Private Equity & Financement Structuré",
+        "Normes Comptables Internationales IFRS"
+      ],
+      "prerequisites": [
+        "Licence en Finance, Économie ou Sciences de Gestion"
+      ],
+      "careers": [
+        "Gestionnaire de Fonds d’Investissement",
+        "Analyste M&A (Fusions & Acquisitions)",
+        "Directeur Administratif et Financier (DAF)",
+        "Auditeur Senior en Cabinet International"
+      ],
+      "tuition_tnd": 6200,
+      "featured": false
+    }
+  ]
+}
