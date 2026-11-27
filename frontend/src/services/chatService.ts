@@ -1,166 +1,154 @@
-import { api } from './api';
-import { Conversation, Message, LanguageCode, SourceCitation } from '../types';
+// SmartCampus AI — Conversations, session visiteur (SA-25), mémoire (SA-26), rattachement (SA-29).
+import { api, ApiError, STORAGE_KEYS, storageGet, storageSet } from './api';
+import { Message } from '../types';
 
-const INITIAL_GREETING_FR: Message = {
-  id: 'msg-init-1',
-  role: 'assistant',
-  content: "Bonjour et bienvenue sur **SmartCampus AI** ! Je suis votre conseiller d'orientation universitaire virtuel pour l'**IIT** (Institut International de Technologie) et l'**ISB** (International School of Business) de Sfax.\n\nComment puis-je vous aider aujourd'hui ? Vous pouvez me parler de votre parcours (Bac, Licence), de vos matières favorites ou de votre projet professionnel !",
-  timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-  language: 'fr',
-  citations: [
-    {
-      documentTitle: 'Guide d’Orientation Officiel IIT & ISB 2026',
-      section: 'Section 1.1 — Accueil & Parcours Académiques',
-      snippet: "L'IIT et l'ISB offrent des formations accréditées à vocation internationale en Ingénierie et en Management.",
-    }
-  ]
+export interface ConversationSummary {
+  id: string;
+  title: string;
+  status: 'active' | 'archived' | 'closed';
+  ownerType: 'visitor' | 'candidate';
+  messageCount: number;
+  createdAt: string;
+  lastMessageAt: string | null;
+}
+
+export interface VisitorUsage {
+  conversations: number;
+  user_messages: number;
+  max_conversations: number;
+  max_user_messages: number;
+}
+
+export interface VisitorSessionInfo {
+  session_id: string;
+  expires_at: string;
+  usage: VisitorUsage;
+}
+
+export interface ConversationMemory {
+  window_size: number;
+  messages: { role: string; content: string; sequence_no: number }[];
+  profile_hints: { interests: string[]; level: string | null; section: string | null };
+}
+
+export interface AssistantMeta {
+  generator: string;
+  intent: string;
+  language_detected: string;
+  program_codes: string[];
+}
+
+type ApiConversation = {
+  id: string; title: string; status: ConversationSummary['status'];
+  owner_type: 'visitor' | 'candidate'; message_count?: number;
+  created_at: string; last_message_at: string | null;
 };
 
-const SAMPLE_CITATIONS: Record<string, SourceCitation[]> = {
-  informatique: [
-    {
-      documentTitle: 'Règlement des Études Cycle Ingénieur IIT',
-      section: 'Art. 4 — Spécialité Génie Informatique',
-      snippet: 'Accréditation EUR-ACE. Options : Intelligence Artificielle & Big Data, Génie Logiciel, Cybersécurité.',
-    },
-    {
-      documentTitle: 'Barème d’Admission & Prérequis IIT',
-      section: 'Section 2.3 — Diplômes Éligibles',
-      snippet: 'Admission sur concours sur titre pour les titulaires d’un bac+2/3 scientifique avec étude du relevé de notes.',
-    }
-  ],
-  isb: [
-    {
-      documentTitle: 'Catalogue des Formations ISB 2026',
-      section: 'Licence & Master Business Analytics',
-      snippet: 'Double compétence en analyse prédictive et stratégie d’affaires. Partenariats avec des banques et multinationales.',
-    }
-  ],
-  frais: [
-    {
-      documentTitle: 'Guide Financier & Bourses d’Excellence IIT-ISB',
-      section: 'Annexe Tarifs 2026-2027',
-      snippet: 'Facilités de paiement en 4 tranches trimestrielles et bourses partielles octroyées aux bacheliers avec mention Très Bien.',
-    }
-  ]
+type ApiMessage = {
+  id: string; role: Message['role']; content: string; created_at: string; sequence_no: number;
 };
+
+const toConversation = (c: ApiConversation): ConversationSummary => ({
+  id: c.id,
+  title: c.title,
+  status: c.status,
+  ownerType: c.owner_type,
+  messageCount: c.message_count ?? 0,
+  createdAt: c.created_at,
+  lastMessageAt: c.last_message_at,
+});
+
+const toMessage = (m: ApiMessage): Message => ({
+  id: m.id,
+  role: m.role,
+  content: m.content,
+  timestamp: new Date(m.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+});
+
+// Partage des appels en cours : deux composants (ou le double rendu de React.StrictMode)
+// qui demandent une session en même temps n'en créent qu'une seule.
+let pendingVisitorSession: Promise<VisitorSessionInfo> | null = null;
 
 export const chatService = {
-  async getConversations(): Promise<Conversation[]> {
+  hasVisitorToken(): boolean {
+    return !!storageGet(STORAGE_KEYS.visitorToken);
+  },
+
+  forgetVisitorSession(): void {
+    storageSet(STORAGE_KEYS.visitorToken, null);
+  },
+
+  /** État de la session visiteur stockée, ou null si absente / expirée / déjà rattachée. */
+  async getVisitorSession(): Promise<VisitorSessionInfo | null> {
+    if (!this.hasVisitorToken()) return null;
     try {
-      const res = await api.get<any>('/conversations');
-      if (Array.isArray(res) && res.length > 0) return res;
-    } catch {
-      // fallback
-    }
-
-    const saved = localStorage.getItem('smartcampus_convos');
-    if (saved) {
-      try { return JSON.parse(saved); } catch {}
-    }
-
-    const defaultConvo: Conversation = {
-      id: 'conv-default',
-      title: 'Orientation initiale — IIT & ISB',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      messages: [INITIAL_GREETING_FR],
-      candidateProfileContext: {
-        currentLevel: 'Baccalauréat',
-        bacSection: 'Mathématiques',
+      return await api.get<VisitorSessionInfo>('/sessions/visitor/me');
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 401) {
+        this.forgetVisitorSession();
+        return null;
       }
-    };
-
-    localStorage.setItem('smartcampus_convos', JSON.stringify([defaultConvo]));
-    return [defaultConvo];
+      throw error;
+    }
   },
 
-  async sendMessage(conversationId: string, content: string, language: LanguageCode = 'fr'): Promise<Message> {
-    const userMsg: Message = {
-      id: `msg-${Date.now()}-u`,
-      role: 'user',
-      content,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      language,
-    };
-
-    // Tentative vers le backend
-    try {
-      await api.post(`/conversations/${conversationId}/messages`, { content, language });
-    } catch {
-      // Backend mock placeholder
+  /** SA-25 — garantit une session visiteur valide (si l'utilisateur n'est pas connecté). */
+  ensureVisitorSession(): Promise<VisitorSessionInfo> {
+    if (!pendingVisitorSession) {
+      pendingVisitorSession = (async () => {
+        const existing = await this.getVisitorSession();
+        if (existing) return existing;
+        const created = await api.post<{ session_token: string }>('/sessions/visitor');
+        storageSet(STORAGE_KEYS.visitorToken, created.session_token);
+        const info = await this.getVisitorSession();
+        if (!info) throw new Error('La session visiteur n’a pas pu être créée.');
+        return info;
+      })().finally(() => { pendingVisitorSession = null; });
     }
-
-    // Réponse intelligente de l'assistant basée sur les connaissances RAG vérifiées IIT & ISB
-    const botResponse = this.generateAgentResponse(content, language);
-
-    // Mettre à jour le stockage local
-    const convos = await this.getConversations();
-    const convo = convos.find(c => c.id === conversationId) || convos[0];
-    if (convo) {
-      convo.messages.push(userMsg);
-      convo.messages.push(botResponse);
-      convo.updatedAt = new Date().toISOString();
-      localStorage.setItem('smartcampus_convos', JSON.stringify(convos));
-    }
-
-    return botResponse;
+    return pendingVisitorSession;
   },
 
-  async transcribeAudio(audioBlob: Blob): Promise<{ text: string; language: LanguageCode }> {
-    // Simulation réaliste de Whisper STT pour l'intégration vocale
-    await new Promise(resolve => setTimeout(resolve, 1200));
-
-    // Exemples réalistes de transcriptions vocales bilingues/derja
-    const samples = [
-      { text: "3aslema, n7eb na3ref les conditions d'admission fel Génie Informatique mta3 l'IIT", language: 'arabizi' as LanguageCode },
-      { text: "Quelles sont les opportunités de carrière après un Master Business Analytics à l'ISB ?", language: 'fr' as LanguageCode },
-      { text: "Est-ce qu'il y a des facilités de paiement ou des bourses pour les étudiants ?", language: 'fr' as LanguageCode }
-    ];
-
-    return samples[Math.floor(Math.random() * samples.length)];
+  async listConversations(): Promise<ConversationSummary[]> {
+    return (await api.get<ApiConversation[]>('/conversations/')).map(toConversation);
   },
 
-  generateAgentResponse(userQuery: string, language: LanguageCode): Message {
-    const query = userQuery.toLowerCase();
-    let reply = "";
-    let citations: SourceCitation[] = [];
+  async createConversation(title?: string): Promise<ConversationSummary> {
+    return toConversation(await api.post<ApiConversation>('/conversations/', title ? { title } : {}));
+  },
 
-    // Détection de la langue dialectale / arabizi
-    if (language === 'arabizi' || query.includes('n7eb') || query.includes('chnowa') || query.includes('3aslema')) {
-      reply = "3aslema ! Mar7ba bik fi **SmartCampus AI**. Pour l'**IIT** (Cycle Ingénieur en Informatique, Civil, Industriel), l'admission tet3ada par étude de dossier w entretien technique. Ken 3andek licence wala prepa, relevés de notes mte3ek houma l'essentiel. T7eb nchoufou ensemble les débouchés wala les frais ?";
-      citations = SAMPLE_CITATIONS.informatique;
-    } else if (language === 'ar_tn' || /[\u0600-\u06FF]/.test(userQuery)) {
-      reply = "أهلاً بك في **SmartCampus AI**! جامعة IIT والمدرسة العليا للأعمال ISB بصفاقس توفران برامج معتمدة دولياً في الهندسة والتصرف وإدارة الأعمال. هل ترغب في معرفة متطلبات القبول أو مواعيد التسجيل؟";
-      citations = SAMPLE_CITATIONS.informatique;
-    } else if (query.includes('ingénieur') || query.includes('informatique') || query.includes('iit') || query.includes('code')) {
-      reply = "À l'**IIT**, le **Cycle Ingénieur en Génie Informatique** (accrédité **EUR-ACE**) propose 3 options d'excellence :\n1. **Intelligence Artificielle & Data Science**\n2. **Génie Logiciel & Cloud Computing**\n3. **Cybersécurité & Systèmes Distribués**\n\nLe programme dure 3 ans et comprend un semestre international ainsi qu'un stage de fin d'études (PFE) souvent rémunéré en Tunisie ou en Europe.";
-      citations = SAMPLE_CITATIONS.informatique;
-    } else if (query.includes('isb') || query.includes('business') || query.includes('finance') || query.includes('marketing') || query.includes('gestion')) {
-      reply = "À l'**ISB (International School of Business)**, nous formons les leaders de la transformation économique avec :\n- **Licence & Master en Business Analytics & Big Data**\n- **Licence en FinTech & Marchés Financiers**\n- **Management & Stratégie d’Entreprise**\n\nLes diplômés bénéficient d'un taux d'insertion professionnelle supérieur à 92% dans les 6 mois grâce aux partenariats bancaires et industriels.";
-      citations = SAMPLE_CITATIONS.isb;
-    } else if (query.includes('frais') || query.includes('tarif') || query.includes('prix') || query.includes('bourse')) {
-      reply = "Les frais d'inscription annuels varient selon la filière :\n- **Cycle Ingénieur IIT :** ~7 200 TND / an\n- **Cycle Préparatoire Intégré :** ~5 800 TND / an\n- **Licences ISB & IIT :** 5 200 – 5 400 TND / an\n- **Masters ISB :** 6 200 – 6 400 TND / an\n\nDes facilités de paiement échelonnées en 4 tranches sont disponibles, ainsi que des bourses de réduction (jusqu'à 25%) pour les bacheliers avec mention Très Bien.";
-      citations = SAMPLE_CITATIONS.frais;
-    } else {
-      reply = "Merci pour votre question ! Pour vous orienter précisément entre l'**IIT** (Pôle Ingénierie & Technologie) et l'**ISB** (Pôle Management & Business), pouvez-vous me préciser votre filière de Baccalauréat et vos centres d'intérêt principaux (ex: Programmation, Finance, Logistique, IA, Management) ?";
-      citations = [
-        {
-          documentTitle: 'Guide d’Orientation 2026',
-          section: 'Méthodologie du Profiling Candidat',
-          snippet: 'L’assistant SmartCampus AI croise les aptitudes académiques avec les débouchés pour calculer un score d’affinité.',
-        }
-      ];
-    }
+  async getMessages(conversationId: string): Promise<Message[]> {
+    return (await api.get<ApiMessage[]>(`/conversations/${conversationId}/messages`)).map(toMessage);
+  },
 
+  async getMemory(conversationId: string): Promise<ConversationMemory> {
+    return api.get<ConversationMemory>(`/conversations/${conversationId}/memory`);
+  },
+
+  async archiveConversation(conversationId: string): Promise<void> {
+    await api.patch(`/conversations/${conversationId}`, { status: 'archived' });
+  },
+
+  /** Envoie le message et renvoie le message utilisateur + la réponse de l'assistant. */
+  async sendMessage(conversationId: string, content: string): Promise<{
+    conversation: ConversationSummary; userMessage: Message; assistantMessage: Message; meta: AssistantMeta;
+  }> {
+    const r = await api.post<{
+      conversation: ApiConversation; user_message: ApiMessage; assistant_message: ApiMessage; assistant: AssistantMeta;
+    }>(`/conversations/${conversationId}/messages`, { content });
     return {
-      id: `msg-${Date.now()}-a`,
-      role: 'assistant',
-      content: reply,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      language,
-      citations,
+      conversation: toConversation(r.conversation),
+      userMessage: toMessage(r.user_message),
+      assistantMessage: toMessage(r.assistant_message),
+      meta: r.assistant,
     };
-  }
-};
+  },
 
+  /** SA-29 — rattache l'historique visiteur au compte candidat connecté (consentement explicite). */
+  async claimVisitorHistory(consent: boolean): Promise<{ transferred_conversations: number }> {
+    const result = await api.post<{ transferred_conversations: number }>(
+      '/sessions/visitor/claim', { consent },
+    );
+    this.forgetVisitorSession(); // le backend révoque l'ancien jeton
+    return result;
+  },
+};

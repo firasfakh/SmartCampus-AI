@@ -19,6 +19,8 @@ export interface User {
   firstName: string;
   lastName: string;
   role: UserRole;
+  /** Rôle tel que renvoyé par l'API (candidate, responsable_academique, ...). */
+  backendRole?: string;
   institution?: Institution;
   avatarUrl?: string;
 }

@@ -6,6 +6,7 @@ Plateforme intelligente de gestion des candidats, des demandes administratives
 et des conversations avec un assistant IA.
 """
 
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 
@@ -16,7 +17,8 @@ from fastapi.responses import JSONResponse
 from app.api.v1.router import api_router
 from app.core.config import settings
 from app.core.exceptions import SmartCampusException, setup_exception_handlers
-from app.database.connection import engine, check_database_connection
+from app.database.connection import engine, check_database_connection, async_session_factory
+from app.services.visitor_sessions import cleanup_expired_visitor_memory
 
 # Configuration du logging
 logging.basicConfig(
@@ -26,21 +28,49 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+async def purge_expired_visitor_sessions() -> int:
+    """SA-26 — Supprimer la mémoire des sessions visiteurs expirées et non rattachées."""
+    async with async_session_factory() as session:
+        removed = await cleanup_expired_visitor_memory(session)
+        await session.commit()
+    if removed:
+        logger.info("Mémoire visiteur purgée : %s session(s) expirée(s).", removed)
+    return removed
+
+
+async def _periodic_cleanup() -> None:
+    interval = max(settings.VISITOR_CLEANUP_INTERVAL_MINUTES, 1) * 60
+    while True:
+        await asyncio.sleep(interval)
+        try:
+            await purge_expired_visitor_sessions()
+        except Exception:  # la purge ne doit jamais arrêter l'API
+            logger.exception("La purge périodique des sessions visiteurs a échoué.")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Gestion du cycle de vie de l'application."""
-    logger.info("Démarrage de SmartCampus AI API...")
-    # Vérification de la connexion à la base de données
-    db_ok = await check_database_connection()
-    if db_ok:
+    logger.info("Démarrage de SmartCampus AI API (%s)...", settings.ENVIRONMENT)
+    cleanup_task = None
+    if await check_database_connection():
         logger.info("Connexion à la base de données établie.")
+        try:
+            await purge_expired_visitor_sessions()
+        except Exception:
+            logger.exception("Le nettoyage des sessions visiteurs a échoué (migrations appliquées ?).")
+        cleanup_task = asyncio.create_task(_periodic_cleanup())
     else:
         logger.warning(
-            "Impossible de se connecter à la base de données. "
-            "L'application démarre sans connexion active."
+            "Impossible de se connecter à PostgreSQL (%s:%s). L'API démarre en mode dégradé : "
+            "vérifiez que la base est lancée (docker compose up -d db) et le fichier .env.",
+            settings.POSTGRES_HOST,
+            settings.POSTGRES_PORT,
         )
     yield
     logger.info("Arrêt de SmartCampus AI API...")
+    if cleanup_task:
+        cleanup_task.cancel()
     await engine.dispose()
 
 

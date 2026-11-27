@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { OFFICIAL_PROGRAMS } from '../../data/officialPrograms';
+import { useCatalogPrograms } from '../../services/catalogService';
 import { Program, Institution } from '../../types';
 import { 
   Search, 
@@ -21,6 +21,7 @@ interface ProgramsPageProps {
 }
 
 export const ProgramsPage: React.FC<ProgramsPageProps> = ({ onNavigate }) => {
+  const { programs, source } = useCatalogPrograms();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedInstitution, setSelectedInstitution] = useState<'ALL' | Institution>('ALL');
   const [selectedLevel, setSelectedLevel] = useState<string>('ALL');
@@ -32,7 +33,7 @@ export const ProgramsPage: React.FC<ProgramsPageProps> = ({ onNavigate }) => {
   // Modal de détail d'un programme
   const [activeModalProgram, setActiveModalProgram] = useState<Program | null>(null);
 
-  const filteredPrograms = OFFICIAL_PROGRAMS.filter(p => {
+  const filteredPrograms = programs.filter(p => {
     const matchesSearch = 
       p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       p.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -49,14 +50,14 @@ export const ProgramsPage: React.FC<ProgramsPageProps> = ({ onNavigate }) => {
       setCompareList(prev => prev.filter(id => id !== programId));
     } else {
       if (compareList.length >= 3) {
-        alert("Vous pouvez comparer au maximum 3 programmes simultanément.");
+        window.alert("Vous pouvez comparer au maximum 3 programmes simultanément.");
         return;
       }
       setCompareList(prev => [...prev, programId]);
     }
   };
 
-  const comparedPrograms = OFFICIAL_PROGRAMS.filter(p => compareList.includes(p.id));
+  const comparedPrograms = programs.filter(p => compareList.includes(p.id));
 
   return (
     <div className="min-h-screen bg-slate-50 py-10 px-4 sm:px-6 lg:px-8">
@@ -67,7 +68,12 @@ export const ProgramsPage: React.FC<ProgramsPageProps> = ({ onNavigate }) => {
           <div>
             <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-sky-600 mb-1">
               <BookOpen className="w-4 h-4" />
-              Catalogue Officiel Habilité 2026-2027
+              Catalogue 2026-2027
+              <span className={`ml-2 normal-case tracking-normal font-semibold px-2 py-0.5 rounded ${
+                source === 'api' ? 'bg-emerald-50 text-emerald-700' : source === 'offline' ? 'bg-amber-50 text-amber-700' : 'bg-slate-100 text-slate-500'
+              }`}>
+                {source === 'api' ? 'Données de la plateforme' : source === 'offline' ? 'Mode hors ligne (données locales)' : 'Chargement…'}
+              </span>
             </div>
             <h1 className="text-3xl font-extrabold text-navy-900 tracking-tight">
               Formations Académiques & Diplômes

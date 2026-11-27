@@ -1,181 +1,98 @@
-import { api } from './api';
-import { User, UserRole } from '../types';
+// SmartCampus AI — Authentification (SA-28).
+import { api, STORAGE_KEYS, storageGet, storageSet } from './api';
+import { Institution, User, UserRole } from '../types';
 
-export interface LoginParams {
-  email: string;
-  password?: string;
-  role?: UserRole; // Permet de basculer de rôle facilement en démonstration
-}
-
+export interface LoginParams { email: string; password: string; }
 export interface RegisterParams {
-  firstName: string;
-  lastName: string;
-  email: string;
-  phone: string;
-  password?: string;
+  firstName: string; lastName: string; email: string; phone: string; password: string;
 }
 
-// Comptes de démonstration prédéfinis pour les 6 rôles institutionnels
-export const DEMO_ACCOUNTS: Record<UserRole, User> = {
-  visitor: {
-    id: 'usr-visitor',
-    email: 'visiteur@smartcampus.tn',
-    firstName: 'Visiteur',
-    lastName: 'Invité',
-    role: 'visitor',
-  },
-  candidate: {
-    id: 'usr-candidate-1',
-    email: 'yassine.trabelsi@gmail.com',
-    firstName: 'Yassine',
-    lastName: 'Trabelsi',
-    role: 'candidate',
-    avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200',
-  },
-  academic_iit: {
-    id: 'usr-iit-resp',
-    email: 'resp.iit@iit.tn',
-    firstName: 'Dr. Slim',
-    lastName: 'Ben Amor',
-    role: 'academic_iit',
-    institution: 'IIT',
-  },
-  academic_isb: {
-    id: 'usr-isb-resp',
-    email: 'resp.isb@isb.tn',
-    firstName: 'Dr. Nadia',
-    lastName: 'Chaker',
-    role: 'academic_isb',
-    institution: 'ISB',
-  },
-  interview_resp: {
-    id: 'usr-interview-resp',
-    email: 'entretiens@smartcampus.tn',
-    firstName: 'M. Mehdi',
-    lastName: 'Karray',
-    role: 'interview_resp',
-  },
-  direction: {
-    id: 'usr-direction',
-    email: 'direction@iit-isb.tn',
-    firstName: 'Prof. Raouf',
-    lastName: 'Triki',
-    role: 'direction',
-  },
-  admin: {
-    id: 'usr-admin',
-    email: 'admin@smartcampus.tn',
-    firstName: 'Amine',
-    lastName: 'Ghorbel',
-    role: 'admin',
-  },
-};
+export type BackendRole =
+  | 'candidate' | 'responsable_academique' | 'responsable_entretien' | 'direction' | 'admin';
+
+export interface BackendUser {
+  id?: string; user_id?: string; email: string; role: BackendRole;
+  first_name?: string; last_name?: string; phone?: string | null;
+  is_active?: boolean; institution_code?: Institution | null; created_at?: string;
+}
+
+/** Rôle backend (+ établissement pour un responsable académique) -> rôle de l'interface. */
+export function mapRole(role: BackendRole, institution?: Institution | null): UserRole {
+  switch (role) {
+    case 'candidate': return 'candidate';
+    case 'responsable_academique': return institution === 'ISB' ? 'academic_isb' : 'academic_iit';
+    case 'responsable_entretien': return 'interview_resp';
+    case 'direction': return 'direction';
+    case 'admin': return 'admin';
+    default: return 'visitor';
+  }
+}
+
+export function mapUser(raw: BackendUser): User {
+  return {
+    id: raw.id || raw.user_id || '',
+    email: raw.email,
+    firstName: raw.first_name || '',
+    lastName: raw.last_name || '',
+    role: mapRole(raw.role, raw.institution_code),
+    backendRole: raw.role,
+    institution: raw.institution_code || undefined,
+  };
+}
+
+type TokenResponse = { access_token: string; token_type: string; user: BackendUser };
 
 export const authService = {
-  async login(params: LoginParams): Promise<{ user: User; token: string }> {
-    try {
-      // Tentative réelle vers le backend FastAPI
-      const response = await api.post<any>('/auth/login', {
-        username: params.email,
-        password: params.password || 'password123',
-      });
-
-      if (response && response.access_token) {
-        const token = response.access_token;
-        localStorage.setItem('smartcampus_token', token);
-        // Récupérer l'utilisateur
-        const user = (await this.getCurrentUser()) || DEMO_ACCOUNTS.candidate;
-        return { user, token };
-      }
-    } catch (e) {
-      console.info('[AuthService] Backend login indisponible ou placeholder, bascule sur session sécurisée locale.');
-    }
-
-    // Gestion / Démonstration : si le rôle est précisé ou déduit de l'email
-    let selectedUser = DEMO_ACCOUNTS.candidate;
-    if (params.role && DEMO_ACCOUNTS[params.role]) {
-      selectedUser = DEMO_ACCOUNTS[params.role];
-    } else {
-      const found = Object.values(DEMO_ACCOUNTS).find(u => u.email.toLowerCase() === params.email.toLowerCase());
-      if (found) selectedUser = found;
-    }
-
-    const mockToken = `mock-jwt-${selectedUser.role}-${Date.now()}`;
-    localStorage.setItem('smartcampus_token', mockToken);
-    localStorage.setItem('smartcampus_user', JSON.stringify(selectedUser));
-
-    return { user: selectedUser, token: mockToken };
+  hasToken(): boolean {
+    return !!storageGet(STORAGE_KEYS.token);
   },
 
-  async register(params: RegisterParams): Promise<{ user: User; token: string }> {
-    try {
-      await api.post<any>('/auth/register', params);
-    } catch (e) {
-      console.info('[AuthService] Backend register endpoint placeholder appelé.');
-    }
+  async login(params: LoginParams): Promise<User> {
+    const response = await api.post<TokenResponse>('/auth/login', {
+      username: params.email.trim(),
+      password: params.password,
+    });
+    storageSet(STORAGE_KEYS.token, response.access_token);
+    return mapUser(response.user);
+  },
 
-    const newUser: User = {
-      id: `usr-${Date.now()}`,
-      email: params.email,
-      firstName: params.firstName,
-      lastName: params.lastName,
-      role: 'candidate',
-    };
-
-    const token = `mock-jwt-candidate-${Date.now()}`;
-    localStorage.setItem('smartcampus_token', token);
-    localStorage.setItem('smartcampus_user', JSON.stringify(newUser));
-
-    return { user: newUser, token };
+  async register(params: RegisterParams): Promise<User> {
+    const response = await api.post<TokenResponse>('/auth/register', {
+      first_name: params.firstName.trim(),
+      last_name: params.lastName.trim(),
+      email: params.email.trim(),
+      phone: params.phone.trim() || null,
+      password: params.password,
+    });
+    storageSet(STORAGE_KEYS.token, response.access_token);
+    return mapUser(response.user);
   },
 
   async getCurrentUser(): Promise<User | null> {
-    const token = localStorage.getItem('smartcampus_token');
-    if (!token) return null;
-
+    if (!this.hasToken()) return null;
     try {
-      const response = await api.get<any>('/auth/me');
-      if (response && response.user_id) {
-        // Enriched user from backend
-        return {
-          id: response.user_id,
-          email: `${response.user_id}@smartcampus.tn`,
-          firstName: 'Utilisateur',
-          lastName: 'Connecté',
-          role: response.role as UserRole || 'candidate',
-        };
-      }
+      return mapUser(await api.get<BackendUser>('/auth/me'));
     } catch {
-      // Fallback local storage
+      storageSet(STORAGE_KEYS.token, null);
+      return null;
     }
-
-    const stored = localStorage.getItem('smartcampus_user');
-    if (stored) {
-      try {
-        return JSON.parse(stored) as User;
-      } catch {
-        return null;
-      }
-    }
-
-    return null;
   },
 
   async logout(): Promise<void> {
     try {
-      await api.post('/auth/logout');
+      if (this.hasToken()) await api.post('/auth/logout');
     } catch {
-      // ignore
+      /* le token est supprimé dans tous les cas */
     } finally {
-      localStorage.removeItem('smartcampus_token');
-      localStorage.removeItem('smartcampus_user');
+      storageSet(STORAGE_KEYS.token, null);
     }
   },
-
-  switchRole(role: UserRole): User {
-    const user = DEMO_ACCOUNTS[role] || DEMO_ACCOUNTS.candidate;
-    localStorage.setItem('smartcampus_user', JSON.stringify(user));
-    localStorage.setItem('smartcampus_token', `mock-jwt-${role}-${Date.now()}`);
-    return user;
-  }
 };
+
+/** Règle identique à celle du backend (app/core/security.py). */
+export function passwordPolicyError(password: string): string | null {
+  if (password.length < 8) return 'Au moins 8 caractères.';
+  if (new TextEncoder().encode(password).length > 72) return '72 octets maximum.';
+  if (!/[A-Za-z]/.test(password) || !/\d/.test(password)) return 'Au moins une lettre et un chiffre.';
+  return null;
+}

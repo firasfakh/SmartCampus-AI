@@ -8,6 +8,8 @@ from fastapi import APIRouter
 
 from app.api.v1.endpoints import (
     auth,
+    sessions,
+    catalog,
     candidates,
     conversations,
     documents,
@@ -20,6 +22,8 @@ from app.api.v1.endpoints import (
 api_router = APIRouter()
 
 api_router.include_router(auth.router, prefix="/auth", tags=["Authentification"])
+api_router.include_router(sessions.router, prefix="/sessions", tags=["Sessions visiteurs"])
+api_router.include_router(catalog.router, prefix="/catalog", tags=["Catalogue académique"])
 api_router.include_router(candidates.router, prefix="/candidates", tags=["Candidats"])
 api_router.include_router(
     conversations.router, prefix="/conversations", tags=["Conversations"]

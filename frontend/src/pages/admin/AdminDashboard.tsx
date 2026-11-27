@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
+import { UserManagementPanel } from '../../components/admin/UserManagementPanel';
 import { 
   ShieldCheck, 
   Users, 
@@ -209,64 +210,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
           </div>
         )}
 
-        {/* Tab 2: Users & Roles Matrix */}
-        {activeTab === 'users' && (
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-6 space-y-6">
-            <div className="border-b border-slate-100 pb-4">
-              <h3 className="text-sm font-bold text-navy-900">Comptes et Affectation des Rôles (SA-3 / SA-5)</h3>
-              <p className="text-xs text-slate-500">
-                Chaque acteur accède strictement aux données et fonctionnalités rattachées à sa mission pédagogique.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-xs">
-              <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 space-y-1">
-                <span className="text-[10px] font-bold uppercase text-sky-700 bg-sky-100 px-2 py-0.5 rounded">
-                  academic_iit
-                </span>
-                <p className="font-bold text-navy-900 text-sm mt-2">Dr. Slim Ben Amor</p>
-                <p className="text-slate-500">resp.iit@iit.tn</p>
-                <p className="text-[11px] text-slate-600 pt-1">Accès exclusif aux candidats et filières Ingénieur IIT.</p>
-              </div>
-
-              <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 space-y-1">
-                <span className="text-[10px] font-bold uppercase text-teal-700 bg-teal-100 px-2 py-0.5 rounded">
-                  academic_isb
-                </span>
-                <p className="font-bold text-navy-900 text-sm mt-2">Dr. Nadia Chaker</p>
-                <p className="text-slate-500">resp.isb@isb.tn</p>
-                <p className="text-[11px] text-slate-600 pt-1">Accès exclusif aux formations Management & Business ISB.</p>
-              </div>
-
-              <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 space-y-1">
-                <span className="text-[10px] font-bold uppercase text-purple-700 bg-purple-100 px-2 py-0.5 rounded">
-                  interview_resp
-                </span>
-                <p className="font-bold text-navy-900 text-sm mt-2">M. Mehdi Karray</p>
-                <p className="text-slate-500">entretiens@smartcampus.tn</p>
-                <p className="text-[11px] text-slate-600 pt-1">Conduite des entretiens et saisie des grilles d'évaluation.</p>
-              </div>
-
-              <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 space-y-1">
-                <span className="text-[10px] font-bold uppercase text-amber-700 bg-amber-100 px-2 py-0.5 rounded">
-                  direction
-                </span>
-                <p className="font-bold text-navy-900 text-sm mt-2">Prof. Raouf Triki</p>
-                <p className="text-slate-500">direction@iit-isb.tn</p>
-                <p className="text-[11px] text-slate-600 pt-1">Pilotage exécutif consolidé et indicateurs d'admission.</p>
-              </div>
-
-              <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 space-y-1">
-                <span className="text-[10px] font-bold uppercase text-red-700 bg-red-100 px-2 py-0.5 rounded">
-                  admin
-                </span>
-                <p className="font-bold text-navy-900 text-sm mt-2">Amine Ghorbel</p>
-                <p className="text-slate-500">admin@smartcampus.tn</p>
-                <p className="text-[11px] text-slate-600 pt-1">Super-administrateur de l'infrastructure logicielle.</p>
-              </div>
-            </div>
-          </div>
-        )}
+        {/* Tab 2: Comptes & rôles — branché sur l'API (SA-28) */}
+        {activeTab === 'users' && <UserManagementPanel />}
 
         {/* Tab 3: System Status & Backend Connectivity */}
         {activeTab === 'system' && (

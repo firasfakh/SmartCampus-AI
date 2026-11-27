@@ -1,152 +1,150 @@
-# 🛠️ SmartCampus AI — Development Guide
+# 🛠️ SmartCampus AI — Guide d'installation locale (SA-7 / SA-8 / SA-9)
 
-Ce document explique comment installer, configurer et lancer SmartCampus AI dans un environnement de développement local.
+Commandes écrites pour l'invite de commandes Windows (`cmd`). Sous macOS / Linux, remplacer
+`copy` par `cp` et `.venv\Scripts\activate.bat` par `source .venv/bin/activate`.
 
 ## 1. Prérequis
 
-| Technologie | Version recommandée |
+| Outil | Version |
 |---|---|
-| Python | 3.13 |
-| Node.js | 24+ |
-| npm | 10+ |
-| PostgreSQL | 16 |
-| Git | Latest |
+| Python | 3.12 ou 3.13 |
+| Node.js / npm | 20+ / 10+ |
+| PostgreSQL | 16 — via **Docker Desktop** (recommandé) ou installé localement |
+| Git | récent |
 
-## 2. Récupération du projet
+## 2. Base de données
 
-```bash
-git clone <URL_DU_REPOSITORY>
-cd SmartCampus-AI
+### Option A — Docker (recommandé)
+Depuis la **racine** du dépôt :
+
+```cmd
+docker compose up -d db
+docker compose ps
 ```
 
-## 3. Configuration du Backend
+Attendre l'état `healthy`. La base écoute sur **127.0.0.1:5433** avec
+`smartcampus / smartcampus_dev_only`, base `smartcampus_db`. Au premier démarrage,
+la base de test `smartcampus_test` est créée automatiquement (`docker/postgres-init/`).
 
-### Créer l'environnement virtuel
+> Volume déjà créé avant cette version ? Créer la base de test une fois :
+> `docker exec -it smartcampus-postgres createdb -U smartcampus smartcampus_test`
 
-```bash
-cd backend
-py -3.13 -m venv .venv
-```
-
-### Activer l'environnement
-
-Windows PowerShell :
-
-```powershell
-.venv\Scripts\Activate.ps1
-```
-
-Linux / macOS :
-
-```bash
-source .venv/bin/activate
-```
-
-### Installer les dépendances
-
-```bash
-pip install -r requirements.txt
-```
-
-## 4. Configuration PostgreSQL
-
-Chaque développeur doit disposer de sa propre base PostgreSQL.
-
-### Créer l'utilisateur et la base
+### Option B — PostgreSQL installé sur Windows
+Dans pgAdmin ou `psql -U postgres` :
 
 ```sql
-CREATE USER smartcampus WITH PASSWORD 'your_password';
+CREATE USER smartcampus WITH PASSWORD 'smartcampus_dev_only';
 CREATE DATABASE smartcampus_db OWNER smartcampus;
+CREATE DATABASE smartcampus_test OWNER smartcampus;
 ```
 
-### Configurer les variables d'environnement
+Puis mettre `POSTGRES_PORT=5432` dans `backend\.env`.
 
-Copier `.env.example` vers `.env` dans le dossier `backend`.
+## 3. Backend
 
-Configurer les variables :
-
-```env
-POSTGRES_HOST=127.0.0.1
-POSTGRES_PORT=5432
-POSTGRES_USER=smartcampus
-POSTGRES_PASSWORD=your_password
-POSTGRES_DB=smartcampus_db
+```cmd
+cd backend
+py -3.12 -m venv .venv
+.venv\Scripts\activate.bat
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+copy .env.example .env
 ```
 
-**Important :** adapter le port et les identifiants selon l'installation PostgreSQL locale.
+Dans `.env`, remplacer `SECRET_KEY` par une clé générée :
 
-Ne jamais partager ou committer le fichier `.env`.
+```cmd
+python -c "import secrets; print(secrets.token_urlsafe(64))"
+```
 
-## 5. Lancement du Backend
+Créer les tables, puis charger les données de démonstration (SA-18) :
 
-Depuis le dossier `backend` :
-
-```bash
+```cmd
+alembic upgrade head
+python -m scripts.seed_demo
 uvicorn app.main:app --reload
 ```
 
-- API : http://127.0.0.1:8000
-- Swagger : http://127.0.0.1:8000/docs
-- ReDoc : http://127.0.0.1:8000/redoc
+- API : http://127.0.0.1:8000 — santé : http://127.0.0.1:8000/health
+- Swagger : http://127.0.0.1:8000/docs (bouton **Authorize** : coller le `access_token` reçu au login)
 
-## 6. Configuration du Frontend
+Comptes de démonstration créés par le seed (mot de passe `SmartCampus2026!`, modifiable avec la
+variable `DEMO_PASSWORD`) :
 
-Ouvrir un deuxième terminal :
+| E-mail | Rôle |
+|---|---|
+| `admin@smartcampus.example` | admin |
+| `resp.iit@smartcampus.example` | responsable académique IIT |
+| `resp.isb@smartcampus.example` | responsable académique ISB |
+| `entretien.iit@smartcampus.example` | responsable entretiens IIT |
+| `direction@smartcampus.example` | direction |
+| `candidat@smartcampus.example` | candidat |
 
-```bash
-cd frontend
-npm install
+Premier administrateur sur une base **réelle** (sans données de démo) :
+
+```cmd
+set BOOTSTRAP_ADMIN_EMAIL=prenom.nom@domaine.tn
+set BOOTSTRAP_ADMIN_PASSWORD=UnMotDePasseLong2026
+python -m scripts.create_admin
 ```
 
-### Démarrer le Frontend
+## 4. Frontend
 
-```bash
+Dans un second terminal :
+
+```cmd
+cd frontend
+npm ci
+copy .env.example .env
 npm run dev
 ```
 
-Interface : http://localhost:5173
+Interface : http://localhost:5173. `VITE_API_URL` doit pointer vers le backend
+(`http://localhost:8000/api/v1` avec uvicorn).
 
-## 7. Organisation des terminaux
+## 5. Tests (SA-22)
 
-Pour travailler localement, conserver deux terminaux ouverts :
+```cmd
+cd backend
+python -m pytest -q
+```
 
-| Terminal | Application | Commande |
-|---|---|---|
-| Terminal 1 | Backend | `uvicorn app.main:app --reload` |
-| Terminal 2 | Frontend | `npm run dev` |
+- Les tests unitaires ne nécessitent pas PostgreSQL.
+- Les tests d'intégration utilisent **uniquement** la base `smartcampus_test` (même hôte, port et
+  utilisateur que `.env`). Si elle n'existe pas, ils sont ignorés avec un message explicite.
+- Le test historique SA-12 est interactif : `set RUN_SA12_MANUAL=1` puis
+  `python -m pytest tests/test_sa12_functional.py -s`.
 
-PostgreSQL doit également être démarré.
+Frontend : `npm run build` (vérification TypeScript + build de production).
 
-## 8. Workflow Git
+## 6. Backend dans Docker (optionnel)
 
-Avant de commencer une tâche :
+```cmd
+docker compose --profile full up -d --build
+```
 
-```bash
+Le conteneur applique `alembic upgrade head` au démarrage puis lance l'API sur le port 8000.
+
+## 7. Workflow Git
+
+```cmd
+git switch votre-branche
 git pull origin main
-```
-
-Créer une branche pour son travail :
-
-```bash
-git checkout -b feature/nom-de-la-fonctionnalite
-```
-
-Après les modifications :
-
-```bash
+:: ... travail ...
 git add .
-git commit -m "feat: description de la fonctionnalite"
-git push origin feature/nom-de-la-fonctionnalite
+git commit -m "SA-xx: description"
+git push
 ```
 
-## 9. Bonnes pratiques
+Ouvrir une pull request vers `main` à la fin de chaque story.
 
-- Ne jamais committer `.env`.
-- Ne jamais committer `.venv/` ou `node_modules/`.
-- Toujours travailler avec un environnement virtuel.
-- Installer les dépendances à partir des fichiers de configuration partagés.
-- Tester les modifications avant de pousser.
-- Documenter les nouvelles fonctionnalités.
+## 8. Bonnes pratiques
+
+- Ne jamais committer `.env`, `.venv/`, `venv/`, `node_modules/`.
+- Ne jamais modifier une migration déjà appliquée : créer une nouvelle révision
+  (`alembic revision --autogenerate -m "..."`), la relire, puis vérifier avec `alembic check`.
+- Les données de `scripts/data/demo_catalog.json` sont des **données de démonstration** :
+  à vérifier auprès de l'administration avant toute communication officielle.
 
 ---
 

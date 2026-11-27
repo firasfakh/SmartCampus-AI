@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
+import { errorMessage } from '../../services/api';
+import { passwordPolicyError } from '../../services/authService';
+import { chatService } from '../../services/chatService';
 import { 
   GraduationCap, 
   UserPlus, 
@@ -28,13 +31,18 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onNavigate }) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const policy = passwordPolicyError(password);
+    if (policy) {
+      error('Mot de passe trop faible', policy);
+      return;
+    }
     setIsLoading(true);
     try {
       await register({ firstName, lastName, email, phone, password });
       success("Compte créé avec succès !", "Bienvenue sur SmartCampus AI. Complétez dès maintenant votre profil candidat.");
       onNavigate('candidate-dashboard');
-    } catch {
-      error("Erreur", "Impossible de finaliser l'inscription.");
+    } catch (err) {
+      error("Inscription impossible", errorMessage(err));
     } finally {
       setIsLoading(false);
     }
@@ -122,10 +130,22 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onNavigate }) => {
                 value={password}
                 onChange={e => setPassword(e.target.value)}
                 required
+                autoComplete="new-password"
+                minLength={8}
                 className="w-full pl-9 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:bg-white focus:ring-2 focus:ring-sky-500"
               />
             </div>
+            <p className={`mt-1 text-[11px] ${password && passwordPolicyError(password) ? 'text-amber-700' : 'text-slate-400'}`}>
+              8 caractères minimum, avec au moins une lettre et un chiffre.
+            </p>
           </div>
+
+          {chatService.hasVisitorToken() && (
+            <p className="text-[11px] text-sky-800 bg-sky-50 border border-sky-100 rounded-lg p-2">
+              Vous avez discuté avec l'assistant en tant que visiteur : après l'inscription, vous pourrez
+              rattacher cet historique à votre compte.
+            </p>
+          )}
 
           <button
             type="submit"
